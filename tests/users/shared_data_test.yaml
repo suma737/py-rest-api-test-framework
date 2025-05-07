@@ -57,3 +57,16 @@ test_cases:
           email: "pattern:email"
           phone: "pattern:phone_us"
           dob: "pattern:date_mm_dd_yy"
+
+  - name: "Get User by Phone via URL Template"
+    description: "Retrieve user by phone using URL template placeholder"
+    method: GET
+    url: "/users/{newUserPhone}/1"
+    tags: ["users", "get", "template", "url"]
+    expected_status: 200
+    expected_response:
+      id: "pattern:integer"
+      name: "pattern:name"
+      email: "pattern:email"
+      phone: "pattern:phone_us"
+      dob: "pattern:date_mm_dd_yy"

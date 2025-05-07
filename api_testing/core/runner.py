@@ -42,10 +42,17 @@ class TestRunner:
             placeholder = f'${{{var_name}}}'
             if value == placeholder:
                 return var_value
+            brace_placeholder = f'{{{var_name}}}'
+            if value == brace_placeholder:
+                return var_value
         # Otherwise, perform string replacement
         for var_name, var_value in variables.items():
+            # replace ${VAR}
             placeholder = f'${{{var_name}}}'
             value = value.replace(placeholder, str(var_value))
+            # replace {VAR}
+            brace_placeholder = f'{{{var_name}}}'
+            value = value.replace(brace_placeholder, str(var_value))
         return value
 
     def _replace_variables_dict(self, data: Dict, variables: Dict) -> Dict:
