@@ -2,6 +2,7 @@ import os
 import yaml
 from datetime import datetime
 from .. import config
+from urllib.parse import unquote
 
 def generate_html_report(app, env, tags, start_time, results, results_by_file, base_url):
     """
@@ -136,7 +137,8 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
                     cases = data.get('test_cases', data if isinstance(data, list) else [])
                     case = next((c for c in cases if c.get('name') == test_name), {})
                     description = case.get('description') or test_name
-                    url = result.get('request_url') or case.get('url', '')
+                    # Use full resolved request URL (with base_url) and decode
+                    url = unquote(result.get('request_url', ''))
             except Exception:
                 description = ''
                 url = ''

@@ -151,6 +151,10 @@ class TestRunner:
             # Initialize variables dictionary
             variables = {}
             
+            # Seed with shared testData variables
+            if default_config and 'variables' in default_config:
+                variables.update(default_config['variables'])
+            
             # Store the response for later use
             response_data = None
             
@@ -323,6 +327,17 @@ class TestRunner:
             if isinstance(test_data, dict):
                 if 'base_url' in test_data:
                     default_config['base_url'] = test_data['base_url']
+                
+                # Load shared testData into variables
+                if 'testData' in test_data:
+                    td = test_data['testData']
+                    default_config['variables'] = {}
+                    for var_name, var_value in td.items():
+                        if isinstance(var_value, dict):
+                            for sub_name, sub_val in var_value.items():
+                                default_config['variables'][f"{var_name}{sub_name[0].upper()}{sub_name[1:]}"] = sub_val
+                        else:
+                            default_config['variables'][var_name] = var_value
                 
                 # Get file-level tags if present
                 file_tags = test_data.get('tags', [])
