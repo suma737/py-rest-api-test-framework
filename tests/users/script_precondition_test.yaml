@@ -1,0 +1,17 @@
+# Test using Python script precondition
+
+test_cases:
+  - name: Update User via Script Precondition
+    preconditions:
+      - script: tests/users/setup_user.py
+        args:
+          - --name
+          - ScriptedUser
+    method: PUT
+    url: /users/${pre_user_id}
+    data:
+      name: ScriptedUser
+    expected_status: 200
+    expected_response:
+      id: ${pre_user_id}
+      name: ${pre_user_name}

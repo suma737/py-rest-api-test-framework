@@ -1,0 +1,19 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Environments
+.env
+.venv
+
+# Reports (if you regenerate locally)
+api_testing/reports/
+api_testing/reports/*
+  
+.pytest_cache/

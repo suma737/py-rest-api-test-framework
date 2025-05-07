@@ -1,0 +1,8 @@
+requests==2.31.0
+PyYAML==6.0.1
+pytest==7.4.3
+pytest-html==4.0.0
+colorama==0.4.6
+Flask==3.0.0
+rich==13.5.2
+jsonschema==4.19.0

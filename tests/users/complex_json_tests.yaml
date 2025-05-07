@@ -1,0 +1,50 @@
+# Complex JSON response test cases for User API
+
+tags: ["users", "complex"]
+
+test_cases:
+  - name: "List Users Complex"
+    description: "Verify GET /users returns list of user objects with correct schema"
+    method: GET
+    url: "/users"
+    expected_status: 200
+    schema: "tests/users/complex_user_schema.json"
+    expected_response:
+      - id: "pattern:integer"
+        name: "pattern:name"
+        email: "pattern:email"
+        phone: "pattern:phone_us"
+        dob: "pattern:date_mm_dd_yy"
+
+  - name: "Get Nonexistent User Complex"
+    description: "Verify GET /users/999 returns error object"
+    method: GET
+    url: "/users/999"
+    expected_status: 404
+    expected_response:
+      error: "regex:^User not found$"
+
+  - name: "Partial List IDs"
+    description: "Verify list contains at least id field"
+    method: GET
+    url: "/users"
+    expected_status: 200
+    validation_mode: partial
+    expected_response:
+      id: "pattern:integer"
+
+  - name: "Nested Object Partial"
+    description: "Verify nested object and array partial validation"
+    method: GET
+    url: "/users/1/details"
+    expected_status: 200
+    validation_mode: partial
+    expected_response:
+      user:
+        profile:
+          address: "pattern:string"
+          contacts:
+            - type: "pattern:word"
+              phone: "pattern:phone_us"
+      roles:
+        - "pattern:word"

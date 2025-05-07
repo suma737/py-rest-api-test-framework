@@ -1,0 +1,59 @@
+# Test cases
+tags: ["users", "basic", "read"]
+test_cases:
+  - name: "Get User Information"
+    description: "Verify GET request to retrieve user information"
+    method: GET
+    url: "/users/1"
+    tags: ["users", "get", "read"]
+    expected_status: 200
+    expected_response:
+      id: "pattern:integer"
+      name: "pattern:name"
+      email: "pattern:email"
+      phone: "pattern:phone_us"
+      dob: "pattern:date_mm_dd_yy"
+
+  - name: "Create New User"
+    description: "Verify POST request to create new user"
+    method: POST
+    url: "/users"
+    tags: ["users", "post", "create"]
+    headers:
+      Content-Type: "application/json"
+    data:
+      name: "Jane Smith"
+      email: "jane@example.com"
+    expected_status: 201
+    expected_response:
+      id: "pattern:integer"
+      name: "pattern:name"
+      email: "pattern:email"
+      phone: "pattern:phone_us"
+      dob: "pattern:date_mm_dd_yy"
+
+  - name: "Update User Information"
+    description: "Verify PUT request to update user information"
+    method: PUT
+    url: "/users/1"
+    tags: ["users", "put", "update"]
+    headers:
+      Content-Type: "application/json"
+    data:
+      name: "John Smith"
+      email: "john.smith@example.com"
+    expected_status: 200
+    expected_response:
+      id: "pattern:integer"
+      name: "pattern:name"
+      email: "pattern:email"
+      phone: "pattern:phone_us"
+      dob: "pattern:date_mm_dd_yy"
+
+  - name: "Delete User"
+    description: "Verify DELETE request to remove user"
+    method: DELETE
+    url: "/users/1"
+    tags: ["users", "delete", "remove"]
+    expected_status: 204
+    expected_response: {}

@@ -1,0 +1,89 @@
+# Advanced test cases
+tags: ["users", "advanced", "create"]
+test_cases:
+  - name: "Create User with Email"
+    description: "Verify POST request to create user with email validation"
+    method: POST
+    tags: ["users", "post", "create", "email"]
+    headers:
+      Content-Type: "application/json"
+    url: "/users"
+    data:
+      name: "John Doe"
+      email: "john.doe@example.com"
+    expected_status: 201
+    validation_mode: partial
+    expected_response:
+      name: "pattern:name"
+      email: "pattern:email"
+
+  - name: "Create User with Phone"
+    description: "Verify POST request to create user with phone validation"
+    method: POST
+    tags: ["users", "post", "create", "phone"]
+    headers:
+      Content-Type: "application/json"
+    url: "/users"
+    data:
+      name: "Jane Smith"
+      phone: "(555) 123-4567"
+    expected_status: 201
+    validation_mode: specific
+    validation_path:
+      - phone
+    expected_response: "pattern:phone_us"
+
+  - name: "Create User with Date of Birth"
+    description: "Verify POST request to create user with date validation"
+    method: POST
+    tags: ["users", "post", "create", "date"]
+    headers:
+      Content-Type: "application/json"
+    url: "/users"
+    data:
+      name: "Alice Johnson"
+      dob: "01/15/90"
+    expected_status: 201
+    expected_response:
+      id: "pattern:integer"
+      name: "pattern:name"
+      dob: "pattern:date_mm_dd_yy"
+      email: "pattern:email"
+      phone: "pattern:phone_us"
+
+  - name: "Create User with Username"
+    description: "Verify POST request with username validation"
+    method: POST
+    tags: ["users", "post", "create", "username"]
+    headers:
+      Content-Type: "application/json"
+    url: "/users"
+    data:
+      name: "Alice Brown"
+      username: "alice_brown_123"
+    expected_status: 201
+    expected_response:
+      id: "pattern:integer"
+      name: "pattern:name"
+      username: "pattern:alphanumeric_special"
+      email: "pattern:email"
+      phone: "pattern:phone_us"
+      dob: "pattern:date_mm_dd_yy"
+
+  - name: "List Users with Header, Params, and Body"
+    description: "GET /users with custom header, query parameters, and JSON payload"
+    method: GET
+    tags: ["users", "list", "header", "params", "body"]
+    headers:
+      Accept: "application/json"
+      X-Test-Header: "TestValue"
+    url: "/users"
+    params:
+      filter: "active"
+      role: "admin"
+    data:
+      includeMeta: true
+    expected_status: 200
+    validation_mode: partial
+    expected_response:
+      users: []

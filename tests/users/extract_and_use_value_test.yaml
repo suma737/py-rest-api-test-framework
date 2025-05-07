@@ -1,0 +1,16 @@
+# Sample test demonstrating variable extraction and reuse
+
+test_cases:
+  - name: Get Extracted User by ID
+    preconditions:
+      - method: GET
+        url: /users
+        extract_variables:
+          first_user_id: 0.id
+          first_user_name: 0.name
+    method: GET
+    url: /users/${first_user_id}
+    expected_status: 200
+    expected_response:
+      id: ${first_user_id}
+      name: ${first_user_name}

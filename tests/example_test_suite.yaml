@@ -1,0 +1,46 @@
+# Example Test Suite
+- name: "Get User List"
+  endpoint: "/users"
+  method: GET
+  expected_status: 200
+  validation_rules:
+    - field: "total"
+      expected_value: 10
+      comparison: equals
+
+- name: "Create User"
+  endpoint: "/users"
+  method: POST
+  body:
+    name: "John Doe"
+    email: "john@example.com"
+  expected_status: 201
+  validation_rules:
+    - field: "id"
+      expected_value: "exists"
+      comparison: contains
+
+- name: "Get User by ID"
+  endpoint: "/users/1"
+  method: GET
+  expected_status: 200
+  validation_rules:
+    - field: "name"
+      expected_value: "John Doe"
+      comparison: equals
+
+- name: "Update User"
+  endpoint: "/users/1"
+  method: PUT
+  body:
+    name: "John Updated"
+  expected_status: 200
+  validation_rules:
+    - field: "name"
+      expected_value: "John Updated"
+      comparison: equals
+
+- name: "Delete User"
+  endpoint: "/users/1"
+  method: DELETE
+  expected_status: 204
