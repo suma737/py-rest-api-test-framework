@@ -1,0 +1,14 @@
+# YAML-driven test for dynamic Flow-to-JSON Schema validation
+
+base_url: http://127.0.0.1:5000
+
+test_cases:
+  - name: "Person Schema Test"
+    description: "Validate /person endpoint against Flow Person type"
+    method: GET
+    url: "/person/1"
+    expected_status: 200
+    schema:
+      flow:
+        file: ../api/types.js  # relative path to your Flow type file
+        type: Person

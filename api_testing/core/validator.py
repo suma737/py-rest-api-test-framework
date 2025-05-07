@@ -2,6 +2,7 @@ import json
 from typing import Dict, Any, Union
 from ..utils.regex_utils import validate_pattern, validate_regex
 import jsonschema
+import subprocess
 from pathlib import Path
 from ..utils.constants import SCHEMA_VALIDATION_FAILURE, PATTERN_DO_NOT_MATCH, MISSING_KEY, INCORRECT_VALUE
 
@@ -234,16 +235,27 @@ class ResponseValidator:
         
         return True, ""
 
-    def _validate_schema(self, actual: Union[Dict, list], schema_path: str) -> tuple[bool, str]:
+    def _validate_schema(self, actual: Union[Dict, list], schema_path: Union[str, Dict]) -> tuple[bool, str]:
         """
-        Validate the response against a JSON Schema file.
+        Validate the response against a JSON Schema, or generate from Flow types at runtime.
         """
         try:
-            schema_file = Path(schema_path)
-            if not schema_file.exists():
-                return False, f"Schema file not found: {schema_path}"
-            with open(schema_file) as sf:
-                schema = json.load(sf)
+            # dynamic schema generation from Flow types
+            if isinstance(schema_path, dict) and 'flow' in schema_path:
+                flow_spec = schema_path['flow']
+                type_file = flow_spec['file']
+                type_name = flow_spec['type']
+                cmd = ['npx', 'flow-to-json-schema', type_file, '--rootTypes', type_name]
+                proc = subprocess.run(cmd, capture_output=True, text=True)
+                if proc.returncode != 0:
+                    return False, f"Schema generation failed: {proc.stderr.strip()}"
+                schema = json.loads(proc.stdout)
+            else:
+                schema_file = Path(schema_path)
+                if not schema_file.exists():
+                    return False, f"Schema file not found: {schema_path}"
+                with open(schema_file) as sf:
+                    schema = json.load(sf)
             jsonschema.validate(instance=actual, schema=schema)
             return True, ""
         except jsonschema.exceptions.ValidationError as e:

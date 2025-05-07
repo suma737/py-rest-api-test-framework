@@ -73,10 +73,14 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
       .filter-container label.passed {{ color: green; }}
       .filter-container label.failed {{ color: red; }}
       .filter-container label.skipped {{ color: #C9A640; }}
-      .summary-container {{ width: 60%; margin: 0 0 20px 20px; display: flex; gap: 20px; }}
+      .summary-container {{ display: flex; width: 100%; margin: 0 0 20px 0; gap: 20px; }}
       .summary-details, .summary-summary {{ flex: 1; }}
+      .summary-chart {{ flex: 0 0 40%; max-width: 40%; display: flex; flex-direction: column; align-items: center; margin-top: auto; }}
+      .chart-total {{ font-size: 14px; margin-top: 5px; text-align: center; }}
       details {{ margin-left: 20px; }}
     </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 </head>
 <body>
   <h1>API Test Report: {app}</h1>
@@ -107,6 +111,10 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
         </tbody>
       </table>
     </div>
+    <div class="summary-chart">
+      <canvas id="pieChart" width="150" height="150"></canvas>
+      <p class="chart-total">Total testcases: {total_tests}</p>
+    </div>
   </div>
   <div class='filter-container'>
     <label class='passed'><input type='checkbox' id='filter-passed' checked> Show Passed</label>
@@ -127,7 +135,29 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
     document.getElementById('filter-passed').addEventListener('change', applyFilters);
     document.getElementById('filter-failed').addEventListener('change', applyFilters);
     document.getElementById('filter-skipped').addEventListener('change', applyFilters);
-    window.onload = applyFilters;
+    function initChart() {{
+      // register DataLabels plugin
+      Chart.register(ChartDataLabels);
+      const ctx = document.getElementById('pieChart').getContext('2d');
+      new Chart(ctx, {{
+        type: 'pie',
+        data: {{ labels: ['Passed','Failed','Skipped'], datasets: [{{ data: [{passed},{failed},{skipped}], backgroundColor: ['#28a745','#dc3545','#C9A640'] }}] }},
+        options: {{
+          responsive: false,
+          plugins: {{
+            legend: {{ display: false }},
+            datalabels: {{
+              color: '#fff',
+              formatter: (value, ctx) => {{
+                let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                return (value/sum*100).toFixed(1) + '%';
+              }}
+            }}
+          }}
+        }}
+      }});
+    }}
+    window.onload = function() {{ applyFilters(); initChart(); }};
   </script>
   <h2>Details</h2>
 """
