@@ -36,9 +36,27 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
       .summary-table {{ border-collapse: collapse; width: 100%; margin-bottom: 20px; }}
       .summary-table th, .summary-table td {{ border: 1px solid #ddd; padding: 6px; text-align: left; font-size: 11px; }}
       .summary-table th {{ background-color: #e6f7ff; }}
-      .details-table {{ border-collapse: collapse; width: 100%; margin-bottom: 10px; }}
+      .details-table {{ border-collapse: collapse; width: 100%; margin-bottom: 10px; table-layout: fixed; }}
       .details-table th, .details-table td {{ border: 1px solid #ddd; padding: 6px; font-size: 11px; text-align: left; font-family: 'Times New Roman', serif; }}
       .details-table th {{ background-color: #e6f7ff; }}
+      /* fixed widths for description and request details columns */
+      .details-table th:nth-child(1), .details-table td:nth-child(1) {{
+        /* fixed width for description */
+        width: 300px;
+        word-wrap: break-word;
+      }}
+      .details-table th:nth-child(2), .details-table td:nth-child(2) {{
+        /* fixed width for request details */
+        width: 650px;
+        word-wrap: break-word;
+      }}
+      /* fixed width for status column */
+      .details-table th:nth-child(3), .details-table td:nth-child(3) {{
+        width: 50px;
+        min-width: 50px;
+        max-width: 50px;
+        text-align: center;
+      }}
       summary {{ font-weight: bold; cursor: pointer; font-family: 'Times New Roman', serif; font-size: 14px; }}
       .summary-metrics {{ font-size: 13px; }}
       .file-name {{ font-size: 16px; }}
@@ -55,7 +73,7 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
       .filter-container label.passed {{ color: green; }}
       .filter-container label.failed {{ color: red; }}
       .filter-container label.skipped {{ color: #C9A640; }}
-      .summary-container {{ width: 65%; margin: 0 0 20px 20px; display: flex; gap: 20px; }}
+      .summary-container {{ width: 60%; margin: 0 0 20px 20px; display: flex; gap: 20px; }}
       .summary-details, .summary-summary {{ flex: 1; }}
       details {{ margin-left: 20px; }}
     </style>
