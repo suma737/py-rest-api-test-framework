@@ -1,0 +1,59 @@
+# Test cases with shared data
+
+testData:
+  # Define shared values for multiple test cases
+  getUserPath: &getUserPath "/users/1"
+  newUser: &newUser
+    name: "Jane Smith"
+    email: "jane@example.com"
+    phone: &newUserPhone "123-456-7890"
+    dob: "01/15/90"
+  userName: &userName "Jane Smith"
+
+tags: ["users", "shared", "data"]
+
+test_cases:
+  - name: "Get User Information"
+    description: "Retrieve user info using shared URL"
+    method: GET
+    url: *getUserPath
+    tags: ["users", "get", "read"]
+    expected_status: 200
+    expected_response:
+      id: "pattern:integer"
+      name: "pattern:name"
+      email: "pattern:email"
+      phone: *newUserPhone
+      dob: "pattern:date_mm_dd_yy"
+
+  - name: "Create New User"
+    description: "Create user using shared data block"
+    method: POST
+    url: "/users"
+    tags: ["users", "post", "create"]
+    headers:
+      Content-Type: "application/json"
+    data: *newUser
+    expected_status: 201
+    expected_response:
+      id: "pattern:integer"
+      name: "pattern:name"
+      email: "pattern:email"
+      phone: "pattern:phone_us"
+      dob: "pattern:date_mm_dd_yy"
+
+  - name: "Search User by Name"
+    description: "GET /users filtered by name using shared testData"
+    method: GET
+    url: "/users"
+    tags: ["users", "get", "search"]
+    params:
+      name: *userName
+    expected_status: 200
+    expected_response:
+      users:
+        - id: "pattern:integer"
+          name: "pattern:name"
+          email: "pattern:email"
+          phone: "pattern:phone_us"
+          dob: "pattern:date_mm_dd_yy"
