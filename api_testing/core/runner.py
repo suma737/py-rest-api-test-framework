@@ -236,6 +236,16 @@ class TestRunner:
             # capture the actual URL including query parameters
             actual_url = response.url
             
+            # Validate HTTP status code
+            exp_status = test_case.get('expected_status')
+            if exp_status is not None and response.status_code != exp_status:
+                return TestResult(
+                    status=False,
+                    response=response_data if 'response_data' in locals() else {},
+                    error=f"EXPECTED_STATUS_MISMATCH: expected {exp_status}, got {response.status_code}",
+                    request_url=actual_url
+                )
+            
             # Store response data for variable extraction
             try:
                 response_data = response.json()
