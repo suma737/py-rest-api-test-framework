@@ -80,6 +80,17 @@ class ResponseValidator:
                     return False, f"In key {key}: {error}"
             else:
                 # Validate primitive values
+                # Support boolean literal strings 'true'/'false'
+                if isinstance(expected_value, str) and expected_value.lower() in ('true','false'):
+                    exp_bool = expected_value.lower() == 'true'
+                    # coerce actual to bool
+                    if isinstance(actual_value, str):
+                        actual_bool = actual_value.lower() == 'true'
+                    else:
+                        actual_bool = bool(actual_value)
+                    if actual_bool != exp_bool:
+                        return False, f"{INCORRECT_VALUE} : Value mismatch for key {key}. Expected: {expected_value}, Actual: {actual_value}"
+                    continue
                 if isinstance(expected_value, str):
                     if expected_value.startswith('pattern:'):
                         pattern_name = expected_value.split(':')[1]
@@ -104,7 +115,7 @@ class ResponseValidator:
         
         return True, ""
 
-    def _validate_specific_value(self, response: Dict, expected_value: Any, path: list) -> tuple[bool, str]:
+    def _validate_specific_value(self, response: Dict, expected_value: Any, path: Union[list, str]) -> tuple[bool, str]:
         """
         Validate a specific value in the response using a path
         
@@ -116,6 +127,9 @@ class ResponseValidator:
         Returns:
             tuple: (validation_result, error_message)
         """
+        # allow dot-notation string for path
+        if isinstance(path, str):
+            path = path.split('.')
         try:
             current = response
             for key in path:
