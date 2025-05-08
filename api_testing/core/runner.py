@@ -189,8 +189,8 @@ class TestRunner:
                         pre_url = f"/{pre_url}"
                     full_pre_url = urljoin(self.base_url, pre_url)
                     headers = self._replace_variables_dict(pre.get('headers', {}), variables)
-                    params = self._replace_variables_list(pre.get('params', {}), variables)
-                    data = self._replace_variables_list(pre.get('data', {}), variables)
+                    params = self._replace_variables_dict(pre.get('params', {}), variables)
+                    data = self._replace_variables_dict(pre.get('data', {}), variables)
                     method = HttpMethod(pre.get('method', 'GET'))
                     resp = self.session.request(
                         method=method.value,
@@ -222,8 +222,8 @@ class TestRunner:
             
             # Replace variables in headers, params, and data
             headers = self._replace_variables_dict(test_case.get('headers', {}), variables)
-            params = self._replace_variables_list(test_case.get('params', {}), variables)
-            data = self._replace_variables_list(test_case.get('data', {}), variables)
+            params = self._replace_variables_dict(test_case.get('params', {}), variables)
+            data = self._replace_variables_dict(test_case.get('data', {}), variables)
 
             # Determine HTTP method from test case
             method = HttpMethod(test_case.get('method', 'GET'))
