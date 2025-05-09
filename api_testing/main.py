@@ -181,6 +181,10 @@ def main():
     if not args.tags:
         tags_input = input("Enter tags to filter tests (space-separated), or press enter to run all: ").strip()
         args.tags = tags_input.split() if tags_input else []
+    # Prompt for missing cookie header if not provided
+    if not args.cookie:
+        cookie_input = input("Enter cookie header value to include in requests (or press enter to skip): ").strip()
+        args.cookie = cookie_input if cookie_input else None
     # Prepare tags for report summary
     tags_str = ", ".join(args.tags) if args.tags else "-"
 
