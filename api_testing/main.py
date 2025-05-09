@@ -177,6 +177,10 @@ def main():
         else:
             print("Invalid selection, try again.")
 
+    # Prompt for missing tags if not provided
+    if not args.tags:
+        tags_input = input("Enter tags to filter tests (space-separated), or press enter to run all: ").strip()
+        args.tags = tags_input.split() if tags_input else []
     # Prepare tags for report summary
     tags_str = ", ".join(args.tags) if args.tags else "-"
 
