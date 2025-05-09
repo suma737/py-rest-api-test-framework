@@ -18,7 +18,7 @@ def print_colored(text, color):
     """Print text with color"""
     print(f"{color}{text}{Style.RESET_ALL}")
 
-def update_config_py(app_name, envs):
+def update_config_py(app_name, envs, base_path):
     """Insert new app entry into APPLICATIONS dict in config.py."""
     from pathlib import Path
     config_path = Path(__file__).parent / 'config.py'
@@ -64,10 +64,20 @@ def update_config_py(app_name, envs):
     ]
     for key, url in envs.items():
         block.append(f"{ind3}'{key}': '{url}',")
+    # determine relative path for config base_path
+    tests_base = Path(__file__).parent.parent / 'tests'
+    try:
+        rel = base_path.relative_to(tests_base)
+    except Exception:
+        try:
+            rel = base_path.relative_to(Path(os.getcwd()))
+        except Exception:
+            rel = Path(base_path).name
+    path_str = rel.as_posix()
     block.extend([
         f"{ind2}}},",
         f"{ind2}'valid_environments': {list(envs.keys())},",
-        f"{ind2}'base_path': TESTS_BASE_DIR / '{app_name}'",
+        f"{ind2}'base_path': TESTS_BASE_DIR / '{path_str}'",
         f"{ind1}}},"
     ])
     # insert and save
@@ -94,12 +104,20 @@ def gather_new_app_info():
         new_envs[env_nm] = env_url
         if input("Add another environment? (y/n): ").strip().lower() not in ("y","yes"):
             break
-    base_dir = input("Enter directory to create test cases: ").strip()
-    bp = Path(base_dir)
-    if not bp.is_absolute():
-        bp = Path(os.getcwd()) / bp
-    bp.mkdir(parents=True, exist_ok=True)
-    return new_app, new_envs, bp
+    # Prompt for a valid existing directory to host test cases
+    while True:
+        base_dir = input("Enter existing directory to create test cases in: ").strip()
+        bp = Path(base_dir)
+        if not bp.is_absolute():
+            bp = Path(os.getcwd()) / bp
+        if not bp.exists() or not bp.is_dir():
+            print("Directory does not exist. Please enter a valid directory.")
+            continue
+        break
+    # Create 'api_integration_tests' subfolder inside provided directory
+    integration_folder = bp / 'api_integration_tests'
+    integration_folder.mkdir(parents=True, exist_ok=True)
+    return new_app, new_envs, integration_folder
 
 def register_new_app(app_name, envs, base_path):
     """Register new application in in-memory config."""
@@ -154,7 +172,7 @@ def main():
             register_new_app(new_app, new_envs, base_path)
             # Confirm writing to config.py
             if input("Write new app to config.py? (y/n): ").strip().lower() in ('y','yes'):
-                update_config_py(new_app, new_envs)
+                update_config_py(new_app, new_envs, base_path)
                 print("config.py updated with new app entry.")
                 return
             args.app = new_app
