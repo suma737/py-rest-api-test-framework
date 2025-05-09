@@ -8,6 +8,8 @@ from colorama import Fore, Style, init
 from datetime import datetime
 from .utils.report_utils import generate_html_report
 from rich.console import Console
+import subprocess
+import sys
 
 # Initialize colorama
 init()
@@ -131,6 +133,28 @@ def register_new_app(app_name, envs, base_path):
         if env_nm not in config.VALID_ENVIRONMENTS:
             config.VALID_ENVIRONMENTS.append(env_nm)
 
+def prompt_generate_integration(base_path: Path):
+    """
+    Prompt for and generate integration testcases via standalone script.
+    """
+    script_path = Path(__file__).parent.parent / 'scripts' / 'generate_integration_tests.py'
+    while input("Generate sample integration testcases? (y/n): ").strip().lower() in ('y','yes'):
+        unit_file = input("Enter path to the unit test Python file (.py): ").strip()
+        unit_path = Path(unit_file)
+        if not unit_path.exists() or not unit_path.is_file() or unit_path.suffix.lower() != '.py':
+            print("Invalid file; please try again.")
+            continue
+        try:
+            rel_dir = unit_path.parent.relative_to(base_path.parent)
+        except Exception:
+            rel_dir = Path()
+        out_dir = base_path / rel_dir
+        subprocess.run([sys.executable, str(script_path), str(unit_path), '--output-dir', str(out_dir)], check=True)
+        print(f"Integration tests generated under {out_dir}")
+        if input("Generate another integration testcases? (y/n): ").strip().lower() not in ('y','yes'):
+            break
+    return
+
 def main():
     parser = argparse.ArgumentParser(description='REST API Testing Framework')
     parser.add_argument('--env', help='Environment to run tests against (e.g. dev/staging/prod)')
@@ -175,6 +199,8 @@ def main():
             if confirm in ('y','yes'):
                 update_config_py(new_app, new_envs, base_path)
                 print("config.py updated with new app entry.")
+                # Trigger integration generation helper
+                prompt_generate_integration(base_path)
             else:
                 print("Exiting without writing to config.py.")
             return
