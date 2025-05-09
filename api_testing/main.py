@@ -1,6 +1,7 @@
 import argparse
 import os
 from pathlib import Path
+import re
 from . import config
 from .api_tester import ApiTester
 from colorama import Fore, Style, init
@@ -14,15 +15,154 @@ def print_colored(text, color):
     """Print text with color"""
     print(f"{color}{text}{Style.RESET_ALL}")
 
+def update_config_py(app_name, envs):
+    """Insert new app entry into APPLICATIONS dict in config.py."""
+    from pathlib import Path
+    config_path = Path(__file__).parent / 'config.py'
+    text = config_path.read_text()
+    lines = text.splitlines()
+    # locate APPLICATIONS start
+    start_idx = None
+    for idx, line in enumerate(lines):
+        if line.strip().startswith('APPLICATIONS'):
+            start_idx = idx
+            break
+    if start_idx is None:
+        print("Error: 'APPLICATIONS' not found in config.py")
+        return
+    # find end of APPLICATIONS dict
+    depth = 0
+    end_idx = None
+    for idx in range(start_idx, len(lines)):
+        depth += lines[idx].count('{') - lines[idx].count('}')
+        if depth == 0:
+            end_idx = idx
+            break
+    if end_idx is None:
+        print("Error: Could not find end of APPLICATIONS dict")
+        return
+    # ensure previous non-blank entry ends with comma
+    prev_idx = end_idx - 1
+    # skip blank lines
+    while prev_idx >= 0 and not lines[prev_idx].strip():
+        prev_idx -= 1
+    if prev_idx >= 0:
+        prev = lines[prev_idx]
+        if not prev.rstrip().endswith(','):
+            lines[prev_idx] = prev + ','
+    # build new entry block with proper indentation
+    ind1 = '    '
+    ind2 = ind1 * 2
+    ind3 = ind1 * 3
+    block = [
+        f"{ind1}'{app_name}': {{",
+        f"{ind2}'description': '{app_name} API',",
+        f"{ind2}'environments': {{"
+    ]
+    for key, url in envs.items():
+        block.append(f"{ind3}'{key}': '{url}',")
+    block.extend([
+        f"{ind2}}},",
+        f"{ind2}'valid_environments': {list(envs.keys())},",
+        f"{ind2}'base_path': TESTS_BASE_DIR / '{app_name}'",
+        f"{ind1}}},"
+    ])
+    # insert and save
+    new_lines = lines[:end_idx] + block + lines[end_idx:]
+    config_path.write_text('\n'.join(new_lines) + '\n')
+
+def gather_new_app_info():
+    """Prompt for new app details and return (app_name, envs, base_path)."""
+    import re, os
+    from pathlib import Path
+    while True:
+        new_app = input("Enter new app name (no spaces; only '_' allowed): ").strip()
+        if re.match(r'^[A-Za-z0-9_]+$', new_app):
+            break
+        print("Invalid format. Try again.")
+    new_envs = {}
+    while True:
+        while True:
+            env_nm = input("Enter environment name (no spaces; only '_' allowed): ").strip()
+            if re.match(r'^[A-Za-z0-9_]+$', env_nm):
+                break
+            print("Invalid format. Try again.")
+        env_url = input(f"Enter URL for environment '{env_nm}': ").strip()
+        new_envs[env_nm] = env_url
+        if input("Add another environment? (y/n): ").strip().lower() not in ("y","yes"):
+            break
+    base_dir = input("Enter directory to create test cases: ").strip()
+    bp = Path(base_dir)
+    if not bp.is_absolute():
+        bp = Path(os.getcwd()) / bp
+    bp.mkdir(parents=True, exist_ok=True)
+    return new_app, new_envs, bp
+
+def register_new_app(app_name, envs, base_path):
+    """Register new application in in-memory config."""
+    config.APPLICATIONS[app_name] = {
+        "description": f"{app_name} API",
+        "environments": envs,
+        "valid_environments": list(envs.keys()),
+        "base_path": base_path
+    }
+    for env_nm in envs:
+        if env_nm not in config.VALID_ENVIRONMENTS:
+            config.VALID_ENVIRONMENTS.append(env_nm)
+
 def main():
     parser = argparse.ArgumentParser(description='REST API Testing Framework')
-    parser.add_argument('--env', required=True, choices=config.VALID_ENVIRONMENTS,
-                      help='Environment to run tests against (dev/staging/prod)')
-    parser.add_argument('--app', required=True, choices=list(config.APPLICATIONS.keys()),
-                      help='Application to test (users/products/orders)')
+    parser.add_argument('--env', help='Environment to run tests against (e.g. dev/staging/prod)')
+    parser.add_argument('--app', help='Application to test (e.g. users/products/orders)')
     parser.add_argument('--tags', nargs='*', help='Run tests with specific tags')
     parser.add_argument('--cookie', help='Raw Cookie header value to include in all requests')
     args = parser.parse_args()
+
+    # Prompt for missing application (with “Not in list” and dynamic config)
+    while True:
+        print("Select application:")
+        apps = list(config.APPLICATIONS.keys()) + ["WannaJoinUs"]
+        for i, a in enumerate(apps, 1):
+            print(f"{i}. {a}")
+        choice = input("Enter number or name: ").strip()
+        if choice.isdigit() and 1 <= int(choice) <= len(apps):
+            selected = apps[int(choice)-1]
+        elif choice in apps:
+            selected = choice
+        else:
+            print("Invalid selection, try again.")
+            continue
+        if selected == "WannaJoinUs":
+            yn = input("App not found. Configure new app? (y/n): ").strip().lower()
+            if yn not in ("y","yes"):
+                continue
+            # Gather and register new application
+            new_app, new_envs, base_path = gather_new_app_info()
+            register_new_app(new_app, new_envs, base_path)
+            # Confirm writing to config.py
+            if input("Write new app to config.py? (y/n): ").strip().lower() in ('y','yes'):
+                update_config_py(new_app, new_envs)
+                print("config.py updated with new app entry.")
+                return
+            args.app = new_app
+        else:
+            args.app = selected
+        if args.app:
+            break
+
+    # Prompt for missing environment (per application)
+    while not args.env:
+        envs = config.APPLICATIONS[args.app]["valid_environments"]
+        print("Select environment:")
+        for i, e in enumerate(envs, 1):
+            print(f"{i}. {e}")
+        choice = input("Enter number or name: ").strip()
+        if choice.isdigit() and 1 <= int(choice) <= len(envs):
+            args.env = envs[int(choice)-1]
+        elif choice in envs:
+            args.env = choice
+        else:
+            print("Invalid selection, try again.")
 
     # Prepare tags for report summary
     tags_str = ", ".join(args.tags) if args.tags else "-"
