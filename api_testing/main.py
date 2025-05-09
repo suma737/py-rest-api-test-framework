@@ -7,9 +7,12 @@ from .api_tester import ApiTester
 from colorama import Fore, Style, init
 from datetime import datetime
 from .utils.report_utils import generate_html_report
+from rich.console import Console
 
 # Initialize colorama
 init()
+
+console = Console()
 
 def print_colored(text, color):
     """Print text with color"""
@@ -121,7 +124,7 @@ def main():
     # Prompt for missing application (with “Not in list” and dynamic config)
     while True:
         print("Select application:")
-        apps = list(config.APPLICATIONS.keys()) + ["WannaJoinUs"]
+        apps = list(config.APPLICATIONS.keys()) + ["AddMeToYourFamily"]
         for i, a in enumerate(apps, 1):
             print(f"{i}. {a}")
         choice = input("Enter number or name: ").strip()
@@ -132,8 +135,18 @@ def main():
         else:
             print("Invalid selection, try again.")
             continue
-        if selected == "WannaJoinUs":
-            yn = input("App not found. Configure new app? (y/n): ").strip().lower()
+        if selected == "AddMeToYourFamily":
+            console.print(
+                "[italic cyan]*********************************************************\n\n"
+                "Glad you want to be part of api-tester family!\n"
+                "Together, we can build a beautiful world by doing our best to prevent problems before they arise. "
+                "I know I’m not perfect, so please don’t hesitate to share your feedback, together, we can make things better.\n\n"
+                "Now, take a deep breath, put that wonderful smile on your face, and let’s get started.\n"
+                "Together, we’ve got this!\n\n"
+                "**********************************************************\n\n",
+                style="italic"
+            )
+            yn = input("Configure new app? (y/n): ").strip().lower()
             if yn not in ("y","yes"):
                 continue
             # Gather and register new application
