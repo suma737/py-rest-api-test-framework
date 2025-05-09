@@ -5,6 +5,7 @@ A Python-based REST API testing framework using YAML test definitions.
 ## Features
 
 - YAML-based test case definitions
+- Interactive new app creation: select `AddMeToYourFamily` to add and configure a new application on the fly
 - Support for HTTP methods: GET, POST, PUT, DELETE, PATCH
 - Header, query parameter, and JSON body support
 - Dynamic test preconditions (HTTP calls or Python scripts)
@@ -37,6 +38,8 @@ After `pip install -e .`, run:
 
 ```bash
 api_tester --app users --env dev [--tags tag1 tag2] [--cookie "SESSIONID=...; Other=..."]
+# Or to add a new application interactively:
+api_tester --app AddMeToYourFamily
 ```
 
 ### Module Entrypoint
