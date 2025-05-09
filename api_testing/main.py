@@ -171,11 +171,13 @@ def main():
             new_app, new_envs, base_path = gather_new_app_info()
             register_new_app(new_app, new_envs, base_path)
             # Confirm writing to config.py
-            if input("Write new app to config.py? (y/n): ").strip().lower() in ('y','yes'):
+            confirm = input("Write new app to config.py? (y/n): ").strip().lower()
+            if confirm in ('y','yes'):
                 update_config_py(new_app, new_envs, base_path)
                 print("config.py updated with new app entry.")
-                return
-            args.app = new_app
+            else:
+                print("Exiting without writing to config.py.")
+            return
         else:
             args.app = selected
         if args.app:
