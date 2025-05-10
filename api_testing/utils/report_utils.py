@@ -177,6 +177,7 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
     window.onload = function() {{ applyFilters(); initChart(); }};
   </script>
   <h2>Details</h2>
+  <p style="font-size: 13px;"><strong>Base URL:</strong> {base_url}</p>
 """
     # Append details per file
     skipped_files = []
@@ -198,7 +199,6 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
             skipped_files.append((relpath, total_file))
             continue
         html += f"<details><summary><span class=\"file-name\">tests/{relpath}</span> <span class=\"summary-metrics\">[<span class=\"metric-total\">Total: {total_file}</span>, <span class=\"metric-passed\">Passed: {passed_file}</span>, <span class=\"metric-failed\">Failed: {failed_file}</span>, <span class=\"metric-skipped\">Skipped: {skipped_file}</span>]</span></summary>"
-        html += f'<p style="font-size: 13px;"><strong>Base URL:</strong> {base_url}</p>'
         html += "<table class=\"details-table\"><thead><tr><th>Description</th><th>Request Details</th><th>Status</th><th>Notes</th></tr></thead><tbody>"
         for test_name, result in file_results.items():
             try:
