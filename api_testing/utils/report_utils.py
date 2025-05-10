@@ -32,12 +32,12 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
     <meta charset="utf-8"/>
     <title>{app} API Test Report</title>
     <style>
-      body {{ font-family: Arial, sans-serif; }}
+      body {{ font-family: Arial, sans-serif; margin: 10px; }}
       .summary-table {{ border-collapse: collapse; width: 100%; margin-bottom: 20px; }}
-      .summary-table th, .summary-table td {{ border: 1px solid #ddd; padding: 6px; text-align: left; font-size: 11px; }}
+      .summary-table th, .summary-table td {{ border: 1px solid #ddd; padding: 6px; text-align: left; font-size: 12px; }}
       .summary-table th {{ background-color: #e6f7ff; }}
-      .details-table {{ border-collapse: collapse; width: 100%; margin-bottom: 10px; table-layout: fixed; }}
-      .details-table th, .details-table td {{ border: 1px solid #ddd; padding: 6px; font-size: 11px; text-align: left; font-family: 'Times New Roman', serif; }}
+      .details-table {{ border-collapse: collapse; width: 100%; margin-top: 20px; margin-bottom: 10px; table-layout: fixed; }}
+      .details-table th, .details-table td {{ border: 1px solid #ddd; padding: 6px; font-size: 12px; text-align: left; font-family: 'Times New Roman', serif; }}
       .details-table th {{ background-color: #e6f7ff; }}
       /* fixed widths for description and request details columns */
       .details-table th:nth-child(1), .details-table td:nth-child(1) {{
@@ -58,7 +58,7 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
         text-align: center;
       }}
       summary {{ font-weight: bold; cursor: pointer; font-family: 'Times New Roman', serif; font-size: 14px; }}
-      .summary-metrics {{ font-size: 13px; }}
+      .summary-metrics {{ font-size: 16px; }}
       .file-name {{ font-size: 16px; }}
       details > p {{ font-size: 11px; font-family: 'Times New Roman', serif; margin: 0; padding: 6px; }}
       ul {{ list-style-type: none; padding-left: 20px; }}
@@ -87,7 +87,7 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
   <div class="summary-container">
     <div class="summary-details">
       <h3>Execution Details</h3>
-      <table class="summary-table">
+      <table class="summary-table" style="margin-left: 20px;">
         <thead><tr><th>Detail</th><th>Value</th></tr></thead>
         <tbody>
           <tr><td>Application</td><td>{app}</td></tr>
@@ -100,7 +100,7 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
     </div>
     <div class="summary-summary">
       <h3>Execution Summary</h3>
-      <table class="summary-table">
+      <table class="summary-table" style="margin-left: 20px;">
         <thead><tr><th>Metric</th><th>Value</th></tr></thead>
         <tbody>
           <tr><td>Total Testcases</td><td>{total_tests}</td></tr>
@@ -148,6 +148,7 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
             legend: {{ display: false }},
             datalabels: {{
               color: '#fff',
+              display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0,
               formatter: (value, ctx) => {{
                 let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
                 return (value/sum*100).toFixed(1) + '%';
@@ -176,7 +177,7 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
         failed_file = sum(1 for r in file_results.values() if not r['status'])
         skipped_file = total_file - (passed_file + failed_file)
         html += f"<details><summary><span class=\"file-name\">tests/{relpath}</span> <span class=\"summary-metrics\">[<span class=\"metric-total\">Total: {total_file}</span>, <span class=\"metric-passed\">Passed: {passed_file}</span>, <span class=\"metric-failed\">Failed: {failed_file}</span>, <span class=\"metric-skipped\">Skipped: {skipped_file}</span>]</span></summary>"
-        html += f'<p><strong>Base URL:</strong> {base_url}</p>'
+        html += f'<p style="font-size: 13px;"><strong>Base URL:</strong> {base_url}</p>'
         html += "<table class=\"details-table\"><thead><tr><th>Description</th><th>Request Details</th><th>Status</th><th>Notes</th></tr></thead><tbody>"
         for test_name, result in file_results.items():
             try:
@@ -193,7 +194,7 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
             status_icon = '&#10004;' if result['status'] else '&#10008;'
             notes = '' if result['status'] else result.get('error', '')
             status_class = 'pass' if result['status'] else 'fail'
-            html += f"<tr class=\"{status_class}\"><td>{description}</td><td>{url}<br><strong>Headers:</strong> {result.get('request_headers', {})}<br><strong>Data:</strong> {result.get('request_data', {})}</td><td>{status_icon}</td><td>{notes}</td></tr>"
+            html += f"<tr class=\"{status_class}\"><td>{description}</td><td>{url}<br><strong>Data:</strong> {result.get('request_data', {})}</td><td>{status_icon}</td><td>{notes}</td></tr>"
         html += "</tbody></table></details>\n"
     # Close HTML
     html += "</body></html>"
