@@ -116,9 +116,13 @@ def gather_new_app_info():
             print("Directory does not exist. Please enter a valid directory.")
             continue
         break
-    # Create 'api_integration_tests' subfolder inside provided directory
+    # Prepare 'api_integration_tests' subfolder inside provided directory
     integration_folder = bp / 'api_integration_tests'
-    integration_folder.mkdir(parents=True, exist_ok=True)
+    if integration_folder.exists():
+        print(f"Using existing folder: {integration_folder}")
+    else:
+        integration_folder.mkdir(parents=True)
+        print(f"Created folder: {integration_folder}")
     return new_app, new_envs, integration_folder
 
 def register_new_app(app_name, envs, base_path):
