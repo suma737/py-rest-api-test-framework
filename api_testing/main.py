@@ -144,7 +144,7 @@ def prompt_generate_integration(base_path: Path):
     script_path = Path(__file__).parent.parent / 'scripts' / 'generate_integration_tests.py'
     while input("Generate sample integration testcases? (y/n): ").strip().lower() in ('y','yes'):
         unit_file = input("Enter path to the unit test Python file (.py): ").strip()
-        unit_path = Path(unit_file)
+        unit_path = Path(unit_file).resolve()
         if not unit_path.exists() or not unit_path.is_file() or unit_path.suffix.lower() != '.py':
             print("Invalid file; please try again.")
             continue
