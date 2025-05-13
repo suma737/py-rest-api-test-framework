@@ -5,6 +5,7 @@ import jsonschema
 import subprocess
 from pathlib import Path
 from ..utils.constants import SCHEMA_VALIDATION_FAILURE, PATTERN_DO_NOT_MATCH, MISSING_KEY, INCORRECT_VALUE
+from ..utils.ai_schema_agent import generate_schema_with_ai
 
 class ResponseValidator:
     def __init__(self):
@@ -251,29 +252,24 @@ class ResponseValidator:
 
     def _validate_schema(self, actual: Union[Dict, list], schema_path: Union[str, Dict]) -> tuple[bool, str]:
         """
-        Validate the response against a JSON Schema, or generate from Flow types at runtime.
+        Validate the response against a JSON Schema file at schema_path['path'],
+        or generate it via AI spec if missing. schema_path must be a dict with:
+          path: path to JSON schema file
+          ai: dict with keys 'file' (Flow type file) and 'type' (Flow type name)
         """
+        # Load or generate schema
+        spec = schema_path
+        schema_file = Path(spec['path'])
         try:
-            # dynamic schema generation from Flow types
-            if isinstance(schema_path, dict) and 'flow' in schema_path:
-                flow_spec = schema_path['flow']
-                type_file = flow_spec['file']
-                type_name = flow_spec['type']
-                cmd = ['npx', 'flow-to-json-schema', type_file, '--rootTypes', type_name]
-                proc = subprocess.run(cmd, capture_output=True, text=True)
-                if proc.returncode != 0:
-                    return False, f"Schema generation failed: {proc.stderr.strip()}"
-                schema = json.loads(proc.stdout)
+            if not schema_file.exists():
+                # Generate via AI agent and save
+                schema = generate_schema_with_ai(spec['ai'], str(schema_file))
             else:
-                schema_file = Path(schema_path)
-                if not schema_file.exists():
-                    return False, f"Schema file not found: {schema_path}"
-                with open(schema_file) as sf:
-                    schema = json.load(sf)
+                schema = json.loads(schema_file.read_text())
+            # Validate response
             jsonschema.validate(instance=actual, schema=schema)
             return True, ""
         except jsonschema.exceptions.ValidationError as e:
-            # Include path, validator, and expected details
             path = ".".join(str(p) for p in e.path) or "<root>"
             validator = e.validator
             expected = e.validator_value
