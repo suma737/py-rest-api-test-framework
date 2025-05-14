@@ -136,177 +136,129 @@ class TestRunner:
                 filtered_tests.append(test)
         return filtered_tests
 
-    def run_test(self, test_case: Dict, default_config: Dict = None) -> TestResult:
-        """
-        Execute a single test case
-        
-        Args:
-            test_case: Dictionary containing test case details
-            default_config: Default configuration for the test suite
-            
-        Returns:
-            TestResult object
-        """
-        try:
-            # Initialize variables dictionary
-            variables = {}
-            
-            # Seed with shared testData variables
-            if default_config and 'variables' in default_config:
-                variables.update(default_config['variables'])
-            
-            # Store the response for later use
-            response_data = None
-            
-            # Handle preconditions (HTTP or Python scripts) if defined
-            if 'preconditions' in test_case:
-                for pre in test_case['preconditions']:
-                    # Script precondition
-                    if 'script' in pre:
-                        script_path = Path(pre['script'])
-                        if not script_path.is_absolute():
-                            script_path = Path.cwd() / script_path
-                        # Build script command with optional args
-                        cmd = ['python', str(script_path)]
-                        if 'args' in pre:
-                            cmd.extend(pre.get('args', []))
-                        proc = subprocess.run(
-                            cmd,
-                            capture_output=True, text=True,
-                            env={**os.environ, 'API_BASE_URL': self.base_url}
-                        )
-                        if proc.returncode != 0:
-                            return TestResult(status=False, response={}, error=f"PRECONDITION_SCRIPT_FAILED: {proc.stderr.strip()}")
-                        try:
-                            script_vars = json.loads(proc.stdout)
-                            variables.update(script_vars)
-                        except Exception as e:
-                            return TestResult(status=False, response={}, error=f"PRECONDITION_SCRIPT_JSON_ERROR: {e}")
-                        continue
-                    # HTTP precondition
-                    pre_url = self._replace_variables(pre.get('url', ''), variables)
-                    if pre_url and not pre_url.startswith('/'):
-                        pre_url = f"/{pre_url}"
-                    full_pre_url = urljoin(self.base_url, pre_url)
-                    headers = self._replace_variables_dict(pre.get('headers', {}), variables)
-                    params = self._replace_variables_dict(pre.get('params', {}), variables)
-                    data = self._replace_variables_dict(pre.get('data', {}), variables)
-                    method = HttpMethod(pre.get('method', 'GET'))
-                    resp = self.session.request(
-                        method=method.value,
-                        url=full_pre_url,
-                        headers=headers,
-                        params=params,
-                        json=data
-                    )
-                    try:
-                        resp_data = resp.json()
-                    except ValueError:
-                        resp_data = {}
-                    if 'extract_variables' in pre:
-                        self._extract_variables(resp_data, pre['extract_variables'], variables)
+    # ===== Refactored run_test into smaller helpers =====
 
-            # Get URL - use test case URL if specified, otherwise use default
-            url = test_case.get('url', '')
-            
-            # Replace variables in URL
-            if url:
-                url = self._replace_variables(url, variables)
-                
-                # Ensure URL starts with a slash if it's a relative path
-                if not url.startswith('/'):
-                    url = f"/{url}"
-            
-            # Join with base URL
-            full_url = urljoin(self.base_url, url)
-            
-            # Replace variables in headers, params, and data
-            headers = self._replace_variables_dict(test_case.get('headers', {}), variables)
-            params = self._replace_variables_dict(test_case.get('params', {}), variables)
-            data = self._replace_variables_dict(test_case.get('data', {}), variables)
+    def _init_variables(self, default_config: Dict = None) -> Dict[str, Any]:
+        variables: Dict[str, Any] = {}
+        if default_config and 'variables' in default_config:
+            variables.update(default_config['variables'])
+        return variables
 
-            # Determine HTTP method from test case
-            method = HttpMethod(test_case.get('method', 'GET'))
-
-            # Make the request
-            response = self.session.request(
-                method=method.value,
-                url=full_url,
-                headers=headers,
-                params=params,
-                json=data
-            )
-            
-            # capture the actual URL including query parameters
-            actual_url = response.url
-            
-            # Validate HTTP status code
-            exp_status = test_case.get('expected_status')
-            if exp_status is not None and response.status_code != exp_status:
-                return TestResult(
-                    status=False,
-                    response=response_data if 'response_data' in locals() else {},
-                    error=f"EXPECTED_STATUS_MISMATCH: expected {exp_status}, got {response.status_code}",
-                    request_url=actual_url
-                )
-            
-            # Store response data for variable extraction
-            try:
-                response_data = response.json()
-            except ValueError:
-                response_data = {}
-            
-            # Extract variables from response
-            if 'extract_variables' in test_case:
-                self._extract_variables(response_data, test_case['extract_variables'], variables)
-            
-            # Replace variables in expected response
-            expected_response = test_case.get('expected_response', {})
-            expected_response = self._replace_variables_dict(expected_response, variables)
-            # Update test_case dict with replaced expected_response
-            test_case['expected_response'] = expected_response
-            
-            # JSON Schema validation if provided
-            if 'schema' in test_case:
-                schema_path = test_case['schema']
-                with open(schema_path) as f:
-                    schema = yaml.safe_load(f) if schema_path.endswith(('.yaml', '.yml')) else json.load(f)
+    def _run_preconditions(self, test_case: Dict, variables: Dict) -> Optional[TestResult]:
+        if 'preconditions' not in test_case:
+            return None
+        for pre in test_case['preconditions']:
+            if 'script' in pre:
+                script_path = Path(pre['script'])
+                if not script_path.is_absolute():
+                    script_path = Path.cwd() / script_path
+                cmd = ['python', str(script_path)]
+                if 'args' in pre:
+                    cmd.extend(pre['args'])
+                proc = subprocess.run(cmd, capture_output=True, text=True,
+                                      env={**os.environ, 'API_BASE_URL': self.base_url})
+                if proc.returncode != 0:
+                    return TestResult(status=False, response={}, error=f"PRECONDITION_SCRIPT_FAILED: {proc.stderr.strip()}")
                 try:
-                    validate(instance=response_data, schema=schema)
-                    return TestResult(status=True, response=response_data, request_url=actual_url)
-                except ValidationError as e:
-                    # detailed schema error
-                    path = ".".join(str(p) for p in e.path) or "<root>"
-                    validator = e.validator
-                    expected = e.validator_value
-                    return TestResult(
-                        status=False,
-                        response=response_data,
-                        error=f"{SCHEMA_VALIDATION_FAILURE} : {e.message} at path '{path}' (validator: {validator}, expected: {expected})",
-                        request_url=actual_url
-                    )
-
-            validation_result, validation_message = self.validator.validate_response(response_data, test_case)
-            if validation_result:
-                return TestResult(
-                    status=True,
-                    response=response_data,
-                    request_url=actual_url
-                )
+                    script_vars = json.loads(proc.stdout)
+                    variables.update(script_vars)
+                except Exception as e:
+                    return TestResult(status=False, response={}, error=f"PRECONDITION_SCRIPT_JSON_ERROR: {e}")
             else:
-                return TestResult(
-                    status=False,
-                    response=response_data,
-                    error=validation_message,
-                    request_url=actual_url
-                )
+                pre_url = self._replace_variables(pre.get('url',''), variables)
+                if pre_url and not pre_url.startswith('/'):
+                    pre_url = f"/{pre_url}"
+                full_pre = urljoin(self.base_url, pre_url)
+                headers = self._replace_variables_dict(pre.get('headers', {}), variables)
+                params = self._replace_variables_dict(pre.get('params', {}), variables)
+                data = self._replace_variables_dict(pre.get('data', {}), variables)
+                method = HttpMethod(pre.get('method', 'GET'))
+                resp = self.session.request(method=method.value, url=full_pre,
+                                            headers=headers, params=params, json=data)
+                try:
+                    resp_data = resp.json()
+                except ValueError:
+                    resp_data = {}
+                if 'extract_variables' in pre:
+                    self._extract_variables(resp_data, pre['extract_variables'], variables)
+        return None
 
-        except Exception as e:
+    def _prepare_request(self, test_case: Dict, variables: Dict) -> tuple:
+        url = test_case.get('url','')
+        if url:
+            url = self._replace_variables(url, variables)
+            if not url.startswith('/'):
+                url = f"/{url}"
+        full_url = urljoin(self.base_url, url)
+        headers = self._replace_variables_dict(test_case.get('headers', {}), variables)
+        params = self._replace_variables_dict(test_case.get('params', {}), variables)
+        data = self._replace_variables_dict(test_case.get('data', {}), variables)
+        method = HttpMethod(test_case.get('method', 'GET'))
+        return method.value, full_url, headers, params, data
+
+    def _execute_request(self, method: str, full_url: str, headers: Dict, params: Dict, data: Any) -> tuple:
+        response = self.session.request(method=method, url=full_url,
+                                        headers=headers, params=params, json=data)
+        return response, response.url
+
+    def _extract_response_data(self, response) -> Dict:
+        try:
+            return response.json()
+        except ValueError:
+            return {}
+
+    def _validate_status(self, response, test_case: Dict, response_data: Dict, actual_url: str) -> Optional[TestResult]:
+        exp = test_case.get('expected_status')
+        if exp is not None and response.status_code != exp:
             return TestResult(
                 status=False,
-                response={},
-                error=str(e)
+                response=response_data,
+                error=f"EXPECTED_STATUS_MISMATCH: expected {exp}, got {response.status_code}",
+                request_url=actual_url
             )
+        return None
+
+    def _prepare_expected_response(self, test_case: Dict, variables: Dict) -> None:
+        expected = test_case.get('expected_response', {})
+        expected = self._replace_variables_dict(expected, variables)
+        test_case['expected_response'] = expected
+
+    def _handle_schema_validation(self, response_data: Dict, test_case: Dict, actual_url: str) -> TestResult:
+        # Use central validator to handle AI/Flow or static schema generation and validation
+        valid, msg = self.validator.validate_response(response_data, test_case)
+        if valid:
+            return TestResult(status=True, response=response_data, request_url=actual_url)
+        return TestResult(status=False, response=response_data, error=msg, request_url=actual_url)
+
+    def _handle_business_validation(self, response_data: Dict, test_case: Dict, actual_url: str) -> TestResult:
+        valid, msg = self.validator.validate_response(response_data, test_case)
+        if valid:
+            return TestResult(status=True, response=response_data, request_url=actual_url)
+        return TestResult(status=False, response=response_data, error=msg, request_url=actual_url)
+
+    def run_test(self, test_case: Dict, default_config: Dict = None) -> TestResult:
+        try:
+            variables = self._init_variables(default_config)
+            pre_err = self._run_preconditions(test_case, variables)
+            if pre_err:
+                return pre_err
+
+            method, full_url, headers, params, data = self._prepare_request(test_case, variables)
+            response, actual_url = self._execute_request(method, full_url, headers, params, data)
+
+            data = self._extract_response_data(response)
+            status_err = self._validate_status(response, test_case, data, actual_url)
+            if status_err:
+                return status_err
+
+            self._extract_variables(data, test_case.get('extract_variables', {}), variables)
+            self._prepare_expected_response(test_case, variables)
+
+            if 'schema' in test_case:
+                return self._handle_schema_validation(data, test_case, actual_url)
+            return self._handle_business_validation(data, test_case, actual_url)
+        except Exception as e:
+            return TestResult(status=False, response={}, error=str(e))
 
     def run_test_suite(self, test_suite_path: str, include_tags: List[str] = None) -> Dict:
         """

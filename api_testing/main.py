@@ -270,7 +270,9 @@ def print_test_results(results: dict[str, dict], env: str, app: str, base_url: s
     print_colored(f"Total Tests: {total_tests}", Fore.CYAN)
     print_colored(f"Passed: {passed}", Fore.GREEN)
     print_colored(f"Failed: {failed}", Fore.RED)
-    print_colored(f"Pass Rate: {((passed/total_tests)*100):.1f}%", Fore.YELLOW)
+    # Avoid ZeroDivisionError when no tests were run
+    pass_rate = (passed/total_tests)*100 if total_tests > 0 else 0.0
+    print_colored(f"Pass Rate: {pass_rate:.1f}%", Fore.YELLOW)
 
 def main():
     parser = argparse.ArgumentParser(description='REST API Testing Framework')

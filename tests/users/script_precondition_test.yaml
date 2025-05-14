@@ -2,6 +2,7 @@
 
 test_cases:
   - name: Update User via Script Precondition
+    tags: ["script"]
     preconditions:
       - script: tests/users/setup_user.py
         args:

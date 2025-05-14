@@ -10,6 +10,7 @@ test_cases:
           first_user_name: 0.name
     method: GET
     url: /users/${first_user_id}
+    tags: ["extract"]
     expected_status: 200
     expected_response:
       id: ${first_user_id}
