@@ -159,15 +159,7 @@ def prompt_generate_integration(base_path: Path):
             break
     return
 
-def main():
-    parser = argparse.ArgumentParser(description='REST API Testing Framework')
-    parser.add_argument('--env', help='Environment to run tests against (e.g. dev/staging/prod)')
-    parser.add_argument('--app', help='Application to test (e.g. users/products/orders)')
-    parser.add_argument('--tags', nargs='*', help='Run tests with specific tags')
-    parser.add_argument('--cookie', help='Raw Cookie header value to include in all requests')
-    args = parser.parse_args()
-
-    # Prompt for missing application (with “Not in list” and dynamic config)
+def select_application() -> str:
     while True:
         print("Select application:")
         apps = list(config.APPLICATIONS.keys()) + ["AddMeToYourFamily"]
@@ -193,61 +185,114 @@ def main():
                 style="italic"
             )
             yn = input("Configure new app? (y/n): ").strip().lower()
-            if yn not in ("y","yes"):
-                continue
-            # Gather and register new application
-            new_app, new_envs, base_path = gather_new_app_info()
-            register_new_app(new_app, new_envs, base_path)
-            # Confirm writing to config.py
-            confirm = input("Write new app to config.py? (y/n): ").strip().lower()
-            if confirm in ('y','yes'):
-                update_config_py(new_app, new_envs, base_path)
-                print("config.py updated with new app entry.")
-                # Trigger integration generation helper
-                prompt_generate_integration(base_path)
-            else:
-                print("Exiting without writing to config.py.")
-            return
-        else:
-            args.app = selected
-        if args.app:
-            break
+            if yn in ("y","yes"):
+                new_app, new_envs, base_path = gather_new_app_info()
+                register_new_app(new_app, new_envs, base_path)
+                if input("Write new app to config.py? (y/n): ").strip().lower() in ("y","yes"):
+                    update_config_py(new_app, new_envs, base_path)
+                    print("config.py updated with new app entry.")
+                    prompt_generate_integration(base_path)
+                else:
+                    print("Exiting without writing to config.py.")
+            continue
+        return selected
 
-    # Prompt for missing environment (per application)
-    while not args.env:
-        envs = config.APPLICATIONS[args.app]["valid_environments"]
+def select_environment(app: str) -> str:
+    while True:
+        envs = config.APPLICATIONS[app]["valid_environments"]
         print("Select environment:")
         for i, e in enumerate(envs, 1):
             print(f"{i}. {e}")
         choice = input("Enter number or name: ").strip()
         if choice.isdigit() and 1 <= int(choice) <= len(envs):
-            args.env = envs[int(choice)-1]
+            return envs[int(choice)-1]
         elif choice in envs:
-            args.env = choice
+            return choice
         else:
             print("Invalid selection, try again.")
 
-    # Prompt for missing tags if not provided
+def prompt_tags(args) -> None:
     if not args.tags:
         tags_input = input("Enter tags to filter tests (space-separated), or press enter to run all: ").strip()
         args.tags = tags_input.split() if tags_input else []
-    # Prompt for missing cookie header if not provided
+
+def prompt_cookie(args) -> None:
     if not args.cookie:
         cookie_input = input("Enter cookie header value to include in requests (or press enter to skip): ").strip()
         args.cookie = cookie_input if cookie_input else None
-    # Prepare tags for report summary
-    tags_str = ", ".join(args.tags) if args.tags else "-"
 
-    start_time = datetime.now()
+def discover_test_files(base_path: Path) -> list[str]:
+    files = []
+    for path in Path(base_path).rglob('*.yaml'):
+        if path.is_file():
+            files.append(str(path))
+    return files
+
+def run_test_suites(test_files: list[str], env: str, app: str, cookie: str, tags: list[str]):
+    """
+    Execute run_test_suite for each file and return (results_by_file, results, base_url).
+    """
+    results_by_file = {}
+    results = {}
+    base_url = None
+    for test_file in test_files:
+        try:
+            tester = ApiTester(env, app, cookie)
+            file_results = tester.run_test_suite(test_file, tags)
+            results_by_file[test_file] = file_results
+            results.update(file_results)
+            base_url = tester.test_runner.base_url
+        except Exception as e:
+            print(f"Error running tests in {test_file}: {str(e)}")
+    return results_by_file, results, base_url
+
+def print_test_results(results: dict[str, dict], env: str, app: str, base_url: str):
+    """
+    Display the aggregated and per-test results, plus summary statistics.
+    """
+    total_tests = len(results)
+    passed = sum(1 for result in results.values() if result['status'])
+    failed = total_tests - passed
+
+    print("\nOverall Test Results:")
+    print(f"Environment: {env}")
+    print(f"Application: {app}")
+    print(f"Base URL: {base_url}")
+
+    print("\nIndividual Test Results:")
+    for test_name, result in results.items():
+        checkmark = u"\u2713" if result['status'] else u"\u2717"
+        color = Fore.GREEN if result['status'] else Fore.RED
+        error = f" - {result['error']}" if result['error'] else ""
+        print(f"{color}{checkmark}{Style.RESET_ALL} {test_name}{error}")
+
+    print("\nTest Statistics:")
+    print_colored(f"Total Tests: {total_tests}", Fore.CYAN)
+    print_colored(f"Passed: {passed}", Fore.GREEN)
+    print_colored(f"Failed: {failed}", Fore.RED)
+    print_colored(f"Pass Rate: {((passed/total_tests)*100):.1f}%", Fore.YELLOW)
+
+def main():
+    parser = argparse.ArgumentParser(description='REST API Testing Framework')
+    parser.add_argument('--env', help='Environment to run tests against (e.g. dev/staging/prod)')
+    parser.add_argument('--app', help='Application to test (e.g. users/products/orders)')
+    parser.add_argument('--tags', nargs='*', help='Run tests with specific tags')
+    parser.add_argument('--cookie', help='Raw Cookie header value to include in all requests')
+    args = parser.parse_args()
+
+    args.app = select_application()
+
+    args.env = args.env or select_environment(args.app)
+
+    prompt_tags(args)
+
+    prompt_cookie(args)
 
     # Get application configuration
     app_config = config.APPLICATIONS[args.app]
     
     # Find all test files in the application directory
-    test_files = []
-    for path in Path(app_config['base_path']).rglob('*.yaml'):
-        if path.is_file():
-            test_files.append(str(path))
+    test_files = discover_test_files(app_config['base_path'])
 
     if not test_files:
         print(f"Error: No test files found in application directory: {app_config['base_path']}")
@@ -258,47 +303,11 @@ def main():
     for test_file in test_files:
         print(f"  {os.path.relpath(test_file, app_config['base_path'])}")
 
-    # Run tests for each file
-    results_by_file = {}
-    results = {}
-    for test_file in test_files:
-        try:
-            tester = ApiTester(args.env, args.app, args.cookie)
-            file_results = tester.run_test_suite(test_file, args.tags)
-            results_by_file[test_file] = file_results
-            results.update(file_results)
-        except Exception as e:
-            print(f"Error running tests in {test_file}: {str(e)}")
-            continue
-
-    # Calculate statistics
-    total_tests = len(results)
-    passed = sum(1 for result in results.values() if result['status'])
-    failed = total_tests - passed
-
-    # Print overall results
-    print("\nOverall Test Results:")
-    print(f"Environment: {args.env}")
-    print(f"Application: {args.app}")
-    print(f"Base URL: {tester.test_runner.base_url}")
-    print("\nIndividual Test Results:")
-
-    # Print test results with checkmarks
-    for test_name, result in results.items():
-        checkmark = u"\u2713" if result['status'] else u"\u2717"
-        color = Fore.GREEN if result['status'] else Fore.RED
-        error = f" - {result['error']}" if result['error'] else ""
-        print(f"{color}{checkmark}{Style.RESET_ALL} {test_name}{error}")
-
-    # Print statistics
-    print("\nTest Statistics:")
-    print_colored(f"Total Tests: {total_tests}", Fore.CYAN)
-    print_colored(f"Passed: {passed}", Fore.GREEN)
-    print_colored(f"Failed: {failed}", Fore.RED)
-    print_colored(f"Pass Rate: {((passed/total_tests)*100):.1f}%", Fore.YELLOW)
-
+    # Run tests and print results
+    results_by_file, results, base_url = run_test_suites(test_files, args.env, args.app, args.cookie, args.tags)
+    print_test_results(results, args.env, args.app, base_url)
     # Generate HTML report
-    generate_html_report(args.app, args.env, args.tags, start_time, results, results_by_file, tester.test_runner.base_url)
+    generate_html_report(args.app, args.env, args.tags, datetime.now(), results, results_by_file, base_url)
 
 if __name__ == "__main__":
     main()
