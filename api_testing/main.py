@@ -92,9 +92,15 @@ def gather_new_app_info():
     from pathlib import Path
     while True:
         new_app = input("Enter new app name (no spaces; only '_' allowed): ").strip()
-        if re.match(r'^[A-Za-z0-9_]+$', new_app):
-            break
-        print("Invalid format. Try again.")
+        # Validate format
+        if not re.match(r'^[A-Za-z0-9_]+$', new_app):
+            print("Invalid format. Try again.")
+            continue
+        # Prevent duplicates
+        if new_app in config.APPLICATIONS:
+            print(f"Application '{new_app}' already exists. Please enter a different name.")
+            continue
+        break
     new_envs = {}
     while True:
         while True:
@@ -274,6 +280,41 @@ def print_test_results(results: dict[str, dict], env: str, app: str, base_url: s
     pass_rate = (passed/total_tests)*100 if total_tests > 0 else 0.0
     print_colored(f"Pass Rate: {pass_rate:.1f}%", Fore.YELLOW)
 
+def handle_action_flow(app: str) -> None:
+    """Prompt user to run tests or generate integration testcases."""
+    while True:
+        print("What do you want to do?")
+        print("1. Run Integration Tests")
+        print("2. Generate Integration Testcases for Your App")
+        choice = input("Enter choice [1/2]: ").strip()
+        if choice == '1':
+            return
+        elif choice == '2':
+            app_config = config.APPLICATIONS[app]
+            prompt_generate_integration(app_config['base_path'])
+            sys.exit(0)
+        else:
+            print("Invalid selection. Please choose 1 or 2.")
+
+def execute_args_flow(args) -> bool:
+    """If both --app and --env are provided and valid, run tests and generate report."""
+    if args.app and args.app in config.APPLICATIONS \
+       and args.env and args.env in config.APPLICATIONS[args.app]['valid_environments']:
+        app = args.app
+        env = args.env
+        tags = args.tags or []
+        cookie = args.cookie
+        app_config = config.APPLICATIONS[app]
+        test_files = discover_test_files(app_config['base_path'])
+        if not test_files:
+            print(f"Error: No test files found in application directory: {app_config['base_path']}")
+            sys.exit(1)
+        results_by_file, results, base_url = run_test_suites(test_files, env, app, cookie, tags)
+        print_test_results(results, env, app, base_url)
+        generate_html_report(app, env, tags, datetime.now(), results, results_by_file, base_url)
+        return True
+    return False
+
 def main():
     parser = argparse.ArgumentParser(description='REST API Testing Framework')
     parser.add_argument('--env', help='Environment to run tests against (e.g. dev/staging/prod)')
@@ -281,18 +322,42 @@ def main():
     parser.add_argument('--tags', nargs='*', help='Run tests with specific tags')
     parser.add_argument('--cookie', help='Raw Cookie header value to include in all requests')
     args = parser.parse_args()
+    # Validate provided app
+    if args.app and args.app not in config.APPLICATIONS:
+        print(f"Error: Application '{args.app}' is not recognized.")
+        sys.exit(1)
+    # Validate provided env for the app
+    if args.env and args.app and args.app in config.APPLICATIONS and \
+       args.env not in config.APPLICATIONS[args.app]['valid_environments']:
+        print(f"Error: Environment '{args.env}' is not valid for application '{args.app}'.")
+        sys.exit(1)
 
-    args.app = select_application()
+    # Enforce mandatory --env when --app is provided
+    if args.app and not args.env:
+        print("Error: --env is mandatory when --app is provided.")
+        sys.exit(1)
 
+    # Auto-run via CLI args
+    if execute_args_flow(args):
+        return
+
+    # Interactive flow
+    if not args.app or args.app not in config.APPLICATIONS:
+        args.app = select_application()
+    handle_action_flow(args.app)
     args.env = args.env or select_environment(args.app)
 
     prompt_tags(args)
 
     prompt_cookie(args)
 
+    app = args.app
+    env = args.env
+    tags = args.tags or []
+    cookie = args.cookie
+
     # Get application configuration
-    app_config = config.APPLICATIONS[args.app]
-    
+    app_config = config.APPLICATIONS[app]
     # Find all test files in the application directory
     test_files = discover_test_files(app_config['base_path'])
 
@@ -306,10 +371,10 @@ def main():
         print(f"  {os.path.relpath(test_file, app_config['base_path'])}")
 
     # Run tests and print results
-    results_by_file, results, base_url = run_test_suites(test_files, args.env, args.app, args.cookie, args.tags)
-    print_test_results(results, args.env, args.app, base_url)
+    results_by_file, results, base_url = run_test_suites(test_files, env, app, cookie, tags)
+    print_test_results(results, env, app, base_url)
     # Generate HTML report
-    generate_html_report(args.app, args.env, args.tags, datetime.now(), results, results_by_file, base_url)
+    generate_html_report(app, env, tags, datetime.now(), results, results_by_file, base_url)
 
 if __name__ == "__main__":
     main()

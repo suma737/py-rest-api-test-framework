@@ -20,9 +20,9 @@ def generate_html_report(app, env, tags, start_time, results, results_by_file, b
     report_time = start_time.strftime('%Y-%m-%d %H:%M:%S')
     report_filename = f"{app}_test_report.html"
 
-    # Ensure reports directory exists under api_testing package
-    base_pkg_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    reports_dir = os.path.join(base_pkg_dir, 'reports')
+    # Ensure reports directory exists under the application's test base_path
+    app_base_path = config.APPLICATIONS[app]['base_path']
+    reports_dir = os.path.join(str(app_base_path), 'reports')
     os.makedirs(reports_dir, exist_ok=True)
     report_filepath = os.path.join(reports_dir, report_filename)
 
