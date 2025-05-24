@@ -1,3 +1,15 @@
+"""Core TestRunner orchestrates API test suite execution.
+
+This module provides the TestRunner class which:
+- Initializes and configures an HTTP session (with optional cookie support)
+- Wraps requests to capture headers and data for logging
+- Discovers, loads, and filters YAML test cases with variable substitution
+- Executes precondition scripts and issues HTTP calls
+- Validates responses (status, JSON schema, business rules) via ResponseValidator
+- Extracts variables from responses for chained tests
+- Aggregates and returns TestResult objects for reporting and downstream processing
+"""
+
 import requests
 import yaml
 from typing import List, Dict, Any, Optional

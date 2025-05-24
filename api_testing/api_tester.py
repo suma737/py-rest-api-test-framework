@@ -1,3 +1,9 @@
+"""ApiTester provides a high-level interface for running API test suites.
+
+It validates environment and application names against the global config,
+initializes a TestRunner with optional cookie support,
+and exposes run_test_suite() to execute YAML test files with tag filtering.
+"""
 import os
 from typing import Dict, Any, Optional
 from pathlib import Path
@@ -5,6 +11,7 @@ from . import config
 from .core.runner import TestRunner
 
 class ApiTester:
+    """Validates inputs and delegates test suite execution to the underlying TestRunner."""
     def __init__(self, env: str, app: str, cookie: Optional[str] = None):
         """
         Initialize API tester with environment and application

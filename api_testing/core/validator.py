@@ -7,8 +7,20 @@ from pathlib import Path
 from ..utils.constants import SCHEMA_VALIDATION_FAILURE, PATTERN_DO_NOT_MATCH, MISSING_KEY, INCORRECT_VALUE
 from ..utils.ai_schema_agent import generate_schema_with_ai
 
+"""Validate API responses across multiple modes.
+
+This class supports:
+- schema: JSON Schema validation (with optional AI-based generation if missing).
+- full: Exact match of response structure and values.
+- partial: Validate specified keys and values.
+- specific: Validate a single field or nested path.
+
+Lists and dicts are validated recursively through helper methods.
+"""
 class ResponseValidator:
+    """Manage and execute various response validation strategies based on test case settings."""
     def __init__(self):
+        """Initialize available validation modes mapping to internal methods."""
         self.validation_modes = {
             'full': self._validate_full_response,
             'partial': self._validate_partial_response,

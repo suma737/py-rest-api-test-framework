@@ -1,3 +1,12 @@
+"""CLI for the REST API Testing Framework.
+
+This module provides the main entry point and both interactive and scripted flows:
+- Parses command-line arguments (--app, --env, --tags, --cookie)
+- Allows selecting applications, environments, and actions interactively
+- Executes test suites and displays colored output via TestRunner and Rich Console
+- Generates standalone HTML reports using generate_html_report
+- Supports dynamic app registration and integration test generation
+"""
 import argparse
 import os
 from pathlib import Path

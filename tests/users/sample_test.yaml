@@ -1,5 +1,5 @@
 # Test cases
-tags: ["users", "basic", "read"]
+tags: ["smoke","users", "basic", "read"]
 test_cases:
   - name: "Get User Information"
     description: "Verify GET request to retrieve user information"
