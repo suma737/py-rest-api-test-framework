@@ -34,7 +34,9 @@ class ApiTester:
             
         # Get the application-specific base URL for the environment
         base_url = app_config['environments'][env]
-        self.test_runner = TestRunner(base_url, cookie)
+        # Determine test data file location ( <app_base_path>/testdata/test_data.json )
+        test_data_file = app_config['base_path'] / 'testdata' / 'test_data.json'
+        self.test_runner = TestRunner(base_url, cookie, env=env, test_data_file=test_data_file)
 
     def run_test_suite(self, test_suite_path: str, include_tags: list = None) -> Dict:
         """

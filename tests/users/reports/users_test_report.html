@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>users API Test Report</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 10px; }
+      .summary-table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+      .summary-table th, .summary-table td { border: 1px solid #ddd; padding: 6px; text-align: left; font-size: 12px; }
+      .summary-table th { background-color: #e6f7ff; }
+      .details-table { border-collapse: collapse; width: 100%; margin-top: 20px; margin-bottom: 10px; table-layout: fixed; }
+      .details-table th, .details-table td { border: 1px solid #ddd; padding: 6px; font-size: 14px; text-align: left; font-family: 'Times New Roman', serif; }
+      .details-table th { background-color: #e6f7ff; }
+      /* fixed widths for description and request details columns */
+      .details-table th:nth-child(1), .details-table td:nth-child(1) {
+        /* fixed width for description */
+        width: 300px;
+        word-wrap: break-word;
+      }
+      .details-table th:nth-child(2), .details-table td:nth-child(2) {
+        /* fixed width for request details */
+        width: 650px;
+        word-wrap: break-word;
+      }
+      /* fixed width for status column */
+      .details-table th:nth-child(3), .details-table td:nth-child(3) {
+        width: 50px;
+        min-width: 50px;
+        max-width: 50px;
+        text-align: center;
+      }
+      summary { font-weight: bold; cursor: pointer; font-family: 'Times New Roman', serif; font-size: 14px; }
+      .summary-metrics { font-size: 16px; }
+      .file-name { font-size: 16px; }
+      details {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 5px;
+        background: linear-gradient(135deg, #f9f9f9, #e0e0e0);
+      }
+      details[open] {
+        background-color: #fff;
+      }
+      ul { list-style-type: none; padding-left: 20px; }
+      .pass { color: green; }
+      .fail { color: red; }
+      .metric-total { color: darkblue; font-size: 10px; }
+      .metric-passed { color: green; font-size: 10px; }
+      .metric-failed { color: red; font-size: 10px; }
+      .metric-skipped { color: #C9A640; font-size: 10px; }
+      .filter-container { margin: 20px 0; margin-left: 20px;}
+      .filter-container label { margin-right: 10px; }
+      .filter-container label.passed { color: green; }
+      .filter-container label.failed { color: red; }
+      .filter-container label.skipped { color: #C9A640; }
+      .summary-container { display: flex; width: 100%; margin: 0 0 20px 0; gap: 20px; }
+      .summary-details, .summary-summary { flex: 1; }
+      .summary-chart { flex: 0 0 40%; max-width: 40%; display: flex; flex-direction: column; align-items: center; margin-top: auto; }
+      .chart-total { font-size: 14px; margin-top: 5px; text-align: center; }
+      /* Style expanded Base URL separately from table */
+      details[open] > p {
+        background: linear-gradient(135deg, #f9f9f9, #e0e0e0);
+        padding: 6px;
+        border-radius: 3px;
+      }
+      details[open] > table.details-table {
+        background-color: #fff;
+      }
+    </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+</head>
+<body>
+  <h1>API Test Report: users</h1>
+  <div class="summary-container">
+    <div class="summary-details">
+      <h3>Execution Details</h3>
+      <table class="summary-table" style="margin-left: 20px;">
+        <thead><tr><th>Detail</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Application</td><td>users</td></tr>
+          <tr><td>Environment</td><td>dev</td></tr>
+          <tr><td>Tags</td><td>template</td></tr>
+          <tr><td>Started at</td><td>2025-07-12 00:39:25</td></tr>
+          <tr><td>Duration</td><td>0:00:00.000005</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="summary-summary">
+      <h3>Execution Summary</h3>
+      <table class="summary-table" style="margin-left: 20px;">
+        <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Total Testcases</td><td>1</td></tr>
+          <tr><td>Passed</td><td>0</td></tr>
+          <tr><td>Failed</td><td>1</td></tr>
+          <tr><td>Skipped</td><td>0</td></tr>
+          <tr><td>Pass Rate</td><td>0.0%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="summary-chart">
+      <canvas id="pieChart" width="150" height="150"></canvas>
+      <p class="chart-total">Total testcases: 1</p>
+    </div>
+  </div>
+  <div class='filter-container'>
+    <label class='passed'><input type='checkbox' id='filter-passed' checked> Show Passed</label>
+    <label class='failed'><input type='checkbox' id='filter-failed' checked> Show Failed</label>
+    <label class='skipped'><input type='checkbox' id='filter-skipped' checked> Show Skipped</label>
+  </div>
+  <script>
+    function applyFilters() {
+      var showPassed = document.getElementById('filter-passed').checked;
+      var showFailed = document.getElementById('filter-failed').checked;
+      var showSkipped = document.getElementById('filter-skipped').checked;
+      document.querySelectorAll('.details-table tbody tr').forEach(function(row) {
+        if (row.classList.contains('pass')) row.style.display = showPassed ? '' : 'none';
+        else if (row.classList.contains('fail')) row.style.display = showFailed ? '' : 'none';
+        else row.style.display = showSkipped ? '' : 'none';
+      });
+    }
+    document.getElementById('filter-passed').addEventListener('change', applyFilters);
+    document.getElementById('filter-failed').addEventListener('change', applyFilters);
+    document.getElementById('filter-skipped').addEventListener('change', applyFilters);
+    function initChart() {
+      // register DataLabels plugin
+      Chart.register(ChartDataLabels);
+      const ctx = document.getElementById('pieChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'pie',
+        data: { labels: ['Passed','Failed','Skipped'], datasets: [{ data: [0,1,0], backgroundColor: ['#28a745','#dc3545','#C9A640'] }] },
+        options: {
+          responsive: false,
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              color: '#fff',
+              display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0,
+              formatter: (value, ctx) => {
+                let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                return (value/sum*100).toFixed(1) + '%';
+              }
+            }
+          }
+        }
+      });
+    }
+    window.onload = function() { applyFilters(); initChart(); };
+  </script>
+  <h2>Details</h2>
+  <p style="font-size: 13px;"><strong>Base URL:</strong> http://127.0.0.1:5000</p>
+<details><summary><span class="file-name">tests/users/shared_data_test.yaml</span> <span class="summary-metrics">[<span class="metric-total">Total: 4</span>, <span class="metric-passed">Passed: 0</span>, <span class="metric-failed">Failed: 1</span>, <span class="metric-skipped">Skipped: 3</span>]</span></summary><table class="details-table"><thead><tr><th>Description</th><th>Request Details</th><th>Status</th><th>Notes</th></tr></thead><tbody><tr class="fail"><td>Retrieve user by phone using URL template placeholder</td><td>http://127.0.0.1:5000/users/${testmember_1.memberphone}/1<br><strong>Data:</strong> {}</td><td>&#10008;</td><td>EXPECTED_STATUS_MISMATCH: expected 200, got 403</td></tr></tbody></table></details>
+<h2>Skipped Files</h2>
+<ul>
+<li>tests/users/flow_schema_test.yaml (Total: 1)</li>
+<li>tests/users/sample_test.yaml (Total: 4)</li>
+<li>tests/users/advanced_test.yaml (Total: 5)</li>
+<li>tests/users/complex_json_tests.yaml (Total: 4)</li>
+<li>tests/users/extract_and_use_value_test.yaml (Total: 1)</li>
+<li>tests/users/script_precondition_test.yaml (Total: 1)</li>
+</ul>
+</body></html>

@@ -1,0 +1,38 @@
+{
+  "testdata": {
+    "testmember_1": {
+    "default": 
+      {"membername":"abcd",
+      "memberage":25,
+      "membercity":"pune",
+      "memberstate":"maharashtra",
+      "membercountry":"india",
+      "memberzip":"123456",
+      "memberphone":"1234567890",
+      "memberemail":"abcd@gmail.com",
+      "memberdob":"12/12/2000",
+      "membergender":"male",
+      "memberstatus":"active",
+      "memberrole":"admin",
+      "memberaddress":"123 Main St, Pune, Maharashtra, India"
+      
+    },
+    "QA": 
+      {"membername":"abcd",
+      "memberage":25,
+      "membercity":"pune",
+      "memberstate":"maharashtra",
+      "membercountry":"india",
+      "memberzip":"123456",
+      "memberphone":"1234567890",
+      "memberemail":"abcd@gmail.com",
+      "memberdob":"12/12/2000",
+      "membergender":"male",
+      "memberstatus":"active",
+      "memberrole":"admin",
+      "memberaddress":"123 Main St, Pune, Maharashtra, India"
+    }
+
+  }
+}
+}

@@ -22,10 +22,17 @@ from jsonschema import validate, ValidationError
 from .base import TestResult, HttpMethod
 from .validator import ResponseValidator
 from ..utils.constants import SCHEMA_VALIDATION_FAILURE
+from .. import config
 
 class TestRunner:
-    def __init__(self, base_url: str, cookie: Optional[str] = None):
+    _COMMON_TEST_DATA_CACHE: Dict[str, Dict[str, Any]] = {}  # Cache keyed by absolute file path
+
+    def __init__(self, base_url: str, cookie: Optional[str] = None, env: str = 'default', test_data_file: Optional[Path] = None):
         self.base_url = base_url.rstrip('/')  # Remove trailing slash
+        self.env = env
+        if test_data_file is None:
+            raise ValueError("test_data_file must be provided via ApiTester; global TEST_DATA_FILE was removed.")
+        self.test_data_file: Path = test_data_file
         self.session = requests.Session()
         # Add Cookie header if provided
         if cookie:
@@ -41,6 +48,23 @@ class TestRunner:
             return orig_request(method=method, url=url, headers=headers, params=params, json=json, **kwargs)
         self.session.request = capture_request
         self.validator = ResponseValidator()
+
+    def _get_common_test_data(self) -> Dict[str, Any]:
+        """Load and cache the common JSON test data for this runner instance."""
+        file_path = self.test_data_file.resolve()
+        cache_key = str(file_path)
+        if cache_key in self._COMMON_TEST_DATA_CACHE:
+            return self._COMMON_TEST_DATA_CACHE[cache_key]
+        if file_path.exists():
+            try:
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+            except Exception:
+                data = {}
+        else:
+            data = {}
+        self._COMMON_TEST_DATA_CACHE[cache_key] = data
+        return data
 
     def _replace_variables(self, value: str, variables: Dict) -> str:
         """
@@ -151,7 +175,53 @@ class TestRunner:
     # ===== Refactored run_test into smaller helpers =====
 
     def _init_variables(self, default_config: Dict = None) -> Dict[str, Any]:
+        """Initialize variables by merging common JSON data and test-file variables.
+
+        Precedence:
+        1) Common JSON variables (env-specific)
+        2) Variables defined in the YAML test file (`testData` section)
+        """
         variables: Dict[str, Any] = {}
+
+        # Load common data
+        # Load and preprocess common data
+        raw_common = self._get_common_test_data()
+        common_data = raw_common.get('testdata', raw_common)
+
+        env_key = self.env
+        for var_name, var_val in common_data.items():
+            # Resolve env layer if dict
+            chosen_val = None
+            if isinstance(var_val, dict):
+                chosen_val = (
+                    var_val.get(env_key)
+                    or var_val.get(env_key.lower())
+                    or var_val.get(env_key.upper())
+                    or var_val.get('default')
+                )
+            else:
+                chosen_val = var_val
+
+            if chosen_val is None:
+                continue
+
+            # If the resolved value is a dict, flatten like YAML testData convention
+            if isinstance(chosen_val, dict):
+                def _dot_flatten(prefix: str, data: Dict):
+                    for sk, sv in data.items():
+                        full_key = f"{prefix}.{sk}" if prefix else sk
+                        if isinstance(sv, dict):
+                            _dot_flatten(full_key, sv)
+                        elif isinstance(sv, list):
+                            for idx, item in enumerate(sv):
+                                _dot_flatten(f"{full_key}.{idx}", item) if isinstance(item, dict) else variables[f"{full_key}.{idx}"] == item
+                        else:
+                            variables[full_key] = sv
+                _dot_flatten(var_name, chosen_val)
+            else:
+                variables[var_name] = chosen_val
+
+        # Override with variables from the test file if provided
         if default_config and 'variables' in default_config:
             variables.update(default_config['variables'])
         return variables
