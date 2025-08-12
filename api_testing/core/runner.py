@@ -34,9 +34,31 @@ class TestRunner:
             raise ValueError("test_data_file must be provided via ApiTester; global TEST_DATA_FILE was removed.")
         self.test_data_file: Path = test_data_file
         self.session = requests.Session()
-        # Add Cookie header if provided
+        # Add Cookie header and populate Session cookies if provided
         if cookie:
+            # Set raw Cookie header so that the exact value is preserved
             self.session.headers.update({'Cookie': cookie})
+            # Also parse the cookie string and register every key/value pair with the session's cookie jar.
+            # This ensures that authentication cookies survive redirects and are handled consistently by
+            # the requests library.
+            try:
+                from http.cookies import SimpleCookie
+                from urllib.parse import urlparse
+
+                parsed = SimpleCookie()
+                parsed.load(cookie)
+                base_domain = urlparse(self.base_url).hostname or ""
+                for morsel in parsed.values():
+                    # requests' cookie jar expects attributes: name, value, domain and path
+                    self.session.cookies.set(
+                        name=morsel.key,
+                        value=morsel.value,
+                        domain=base_domain,
+                        path=morsel['path'] or "/"
+                    )
+            except Exception:
+                # Fallback – if cookie parsing fails, continue with only the raw header
+                pass
         # Wrap session.request to capture headers and data
         orig_request = self.session.request
         def capture_request(method, url, headers=None, params=None, json=None, **kwargs):
